@@ -1,0 +1,33 @@
+name: Levels Harness
+
+# Manual only — verification tool for the support/resistance detector module.
+# Not part of the daily brief pipeline.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  run-harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run levels:harness
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: levels-harness-output
+          path: |
+            out/levels-*.png
+          if-no-files-found: ignore
