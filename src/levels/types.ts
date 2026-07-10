@@ -39,12 +39,15 @@ export interface BreakoutEvent {
   ageAtBreakDays: number;
 }
 
-export type StoryKind = 'breakout' | 'testing' | 'fallback';
+export type StoryKind = 'breakout' | 'testing' | 'combined' | 'fallback';
 
 export interface LevelStory {
   kind: StoryKind;
   text: string;
   level?: Level;
+  /** Set only for kind === 'combined': the weak level actually being touched right
+   * now, while `level` holds the dominant one driving the headline. */
+  secondaryLevel?: Level;
   breakout?: BreakoutEvent;
   nearestDirection?: 'above' | 'below';
 }

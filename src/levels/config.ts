@@ -12,6 +12,13 @@ export const LEVELS_CONFIG = {
   testingNowPct: 0.005,
   /** Close beyond a level by this margin counts as a break. */
   breakMarginPct: 0.003,
+  /** A level being tested right now only gets solo-headlined if it's `strong`
+   * (3+ touches) AND its score clears this bar too — otherwise a barely-strong
+   * level (e.g. exactly 3 touches, score ~38 max under current weights) can
+   * shadow a much bigger structural level sitting a bit further away. At the
+   * current score weights, this effectively requires ~4+ touches with decent
+   * recency/duration, or 5+ touches outright. Tune alongside scoreWeights. */
+  testingHeadlineMinScore: 45,
   /** Lookback window for candle fetch and for normalizing recency/duration in scoring. */
   lookbackDays: 14,
   /** OKX candle bar size. */

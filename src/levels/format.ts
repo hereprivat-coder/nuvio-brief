@@ -23,12 +23,44 @@ function formatDays(days: number): string {
   return `${rounded} ${pluralizeRu(rounded, DAY_FORMS)}`;
 }
 
+interface TestingCopy {
+  lead: (price: string) => string;
+  status: string;
+  holdConsequence: string;
+  breakConsequence: string;
+}
+
+/** Hold/break consequences are opposite for a ceiling vs a floor — this table is the
+ * single source of truth for that, so the sentence-building logic below can't drift
+ * out of sync with role the way the old single hardcoded template did (bug: it always
+ * said "пробьёт — дорога выше", which is backwards for a support level). */
+const TESTING_COPY: Record<Level['role'], TestingCopy> = {
+  resistance: {
+    lead: (price) => `BTC уперся в ${price}`,
+    status: 'пробоя нет',
+    holdConsequence: 'откат вниз',
+    breakConsequence: 'дорога выше',
+  },
+  support: {
+    lead: (price) => `BTC тестирует поддержку ${price}`,
+    status: 'пока держит',
+    holdConsequence: 'отскок вверх',
+    breakConsequence: 'открывается дорога ниже',
+  },
+};
+
 export function formatTestingLine(level: Level): string {
+  const copy = TESTING_COPY[level.role];
   const touchesWord = pluralizeRu(level.touches, TOUCH_FORMS);
   return (
-    `BTC уперся в ${formatPrice(level.price)} — ${level.touches} ${touchesWord} за ${formatDays(level.ageDays)}, ` +
-    `пробоя нет. Уровень решает: удержит — откат, пробьёт — дорога выше.`
+    `${copy.lead(formatPrice(level.price))} — ${level.touches} ${touchesWord} за ${formatDays(level.ageDays)}, ` +
+    `${copy.status}. Уровень решает: удержит — ${copy.holdConsequence}, пробьёт — ${copy.breakConsequence}.`
   );
+}
+
+export function formatCombinedTestingLine(weak: Level, dominant: Level, currentPrice: number): string {
+  const direction = dominant.price < currentPrice ? 'ниже' : 'выше';
+  return `BTC сейчас у ${formatPrice(weak.price)}, крупный узел ${direction} — ${formatPrice(dominant.price)}.`;
 }
 
 export function formatBreakoutLine(breakout: BreakoutEvent): string {

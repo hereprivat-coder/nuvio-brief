@@ -35,15 +35,18 @@ export async function renderLevelsChart(
   const pricePath = candles.map((c, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i).toFixed(1)} ${yAt(c.close).toFixed(1)}`).join(' ');
 
   const highlightPrice = result.story.level?.price;
+  const secondaryPrice = result.story.secondaryLevel?.price;
 
   const levelLines = result.allLevels
     .map((level: Level) => {
       const y = yAt(level.price).toFixed(1);
       const isHighlighted = highlightPrice !== undefined && Math.abs(level.price - highlightPrice) < 1e-9;
-      const color = isHighlighted ? '#e6551d' : level.role === 'support' ? '#2e8b57' : '#a33';
-      const strokeWidth = isHighlighted ? 2.5 : level.strong ? 1.6 : 1;
-      const dash = isHighlighted ? '' : 'stroke-dasharray="6,4"';
-      const label = `${Math.round(level.price)} (${level.touches}x)${isHighlighted ? ' ★' : ''}`;
+      const isSecondary = secondaryPrice !== undefined && Math.abs(level.price - secondaryPrice) < 1e-9;
+      const color = isHighlighted ? '#e6551d' : isSecondary ? '#c98a1f' : level.role === 'support' ? '#2e8b57' : '#a33';
+      const strokeWidth = isHighlighted || isSecondary ? 2.5 : level.strong ? 1.6 : 1;
+      const dash = isHighlighted || isSecondary ? '' : 'stroke-dasharray="6,4"';
+      const marker = isHighlighted ? ' ★' : isSecondary ? ' •' : '';
+      const label = `${Math.round(level.price)} (${level.touches}x)${marker}`;
       return (
         `<line x1="${MARGIN.left}" y1="${y}" x2="${MARGIN.left + plotW}" y2="${y}" stroke="${color}" stroke-width="${strokeWidth}" ${dash}/>` +
         `<text x="${MARGIN.left + plotW + 8}" y="${Number(y) + 4}" font-size="13" fill="${color}" font-family="monospace">${escapeXml(label)}</text>`
@@ -71,7 +74,7 @@ export async function renderLevelsChart(
 
   const legend =
     'green dashed = support, red dashed = resistance, thicker = strong (3+ touches), ' +
-    'orange solid + ★ = level driving today\'s story';
+    'orange solid + ★ = headline level, amber solid + • = weak level actually being touched (combined story)';
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
   <rect width="${WIDTH}" height="${HEIGHT}" fill="white"/>
