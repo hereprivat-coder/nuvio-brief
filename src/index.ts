@@ -1,6 +1,6 @@
 import { config, validateConfig } from './config.js';
 import { getMoscowHumanDate, getMoscowIsoDate } from './utils/date.js';
-import { get24hChange } from './services/binance.js';
+import { get24hChange } from './services/okx.js';
 import { fetchFearGreedIndex } from './services/alternativeMe.js';
 import { hasSentToday, markSentToday } from './services/idempotency.js';
 import { sendTelegramMessage } from './services/telegram.js';
@@ -25,8 +25,8 @@ async function main(): Promise<void> {
 
   // Step 1-2: price → Block 1 pulse (BTC drives it, ETH only feeds event selection).
   const [btcChange, ethChange, fearGreedValue] = await Promise.all([
-    get24hChange('BTCUSDT'),
-    get24hChange('ETHUSDT'),
+    get24hChange('BTC-USDT'),
+    get24hChange('ETH-USDT'),
     fetchFearGreedIndex(),
   ]);
 
