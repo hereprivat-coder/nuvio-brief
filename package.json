@@ -6,6 +6,7 @@
   "description": "Ежедневный утренний крипто-бриф в Telegram для новичков",
   "scripts": {
     "start": "tsx src/index.ts",
+    "pulse:start": "tsx src/pulse/index.ts",
     "typecheck": "tsc --noEmit",
     "levels:harness": "tsx scripts/levels-harness.ts"
   },

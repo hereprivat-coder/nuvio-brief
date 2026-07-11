@@ -1,0 +1,54 @@
+name: Pulse Brief
+
+on:
+  schedule:
+    # 09:00 Europe/Moscow (UTC+3, no DST) = 06:00 UTC — one hour before the
+    # newbie brief. If GitHub Actions cron ever moves off UTC, or Moscow
+    # changes its offset, update this line accordingly.
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pulse-brief
+  cancel-in-progress: false
+
+jobs:
+  send-pulse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run pulse:start
+        env:
+          PULSE_TELEGRAM_BOT_TOKEN: ${{ secrets.PULSE_TELEGRAM_BOT_TOKEN }}
+          PULSE_TELEGRAM_CHANNEL_ID: ${{ secrets.PULSE_TELEGRAM_CHANNEL_ID }}
+          PULSE_SWAP_LINK: ${{ secrets.PULSE_SWAP_LINK }}
+
+      - name: Persist idempotency + breakout dedup state
+        run: |
+          # state/pulse_levels_announced_breakouts.json only exists once a breakout has
+          # ever fired, so each file is checked individually rather than passed together
+          # (a plain `git add` on a path that's never existed would fail the step).
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          CHANGED=0
+          for f in state/pulse_last_sent_date.txt state/pulse_levels_announced_breakouts.json; do
+            if [ -f "$f" ] && [ -n "$(git status --porcelain "$f")" ]; then
+              git add "$f"
+              CHANGED=1
+            fi
+          done
+          if [ "$CHANGED" = "1" ]; then
+            git commit -m "chore: pulse state update $(cat state/pulse_last_sent_date.txt 2>/dev/null || echo unknown)"
+            git push
+          fi
