@@ -1,6 +1,12 @@
 import type { BreakoutEvent, Level, LevelStory } from './types.js';
 import type { LevelsConfig } from './config.js';
-import { formatBreakoutLine, formatCombinedTestingLine, formatFallbackLine, formatTestingLine } from './format.js';
+import {
+  formatBreakoutLine,
+  formatCombinedTestingLine,
+  formatDominantLine,
+  formatFallbackLine,
+  formatTestingLine,
+} from './format.js';
 
 function closeness(distancePct: number, relevancePct: number): number {
   return Math.max(0, Math.min(1, 1 - distancePct / relevancePct));
@@ -28,9 +34,9 @@ function qualifiesToHeadline(level: Level, config: LevelsConfig): boolean {
  *    it clears qualifiesToHeadline itself. A weak tested level next to a much
  *    stronger nearby level produces a combined "weak here, big one over there" line
  *    instead of burying the stronger level;
- * 3) no qualifying tested level → headline the dominant-by-score relevant level
- *    outright (this is a reuse of the "testing" copy for a level that may not be
- *    literally touched this instant — see report for the interpretation call);
+ * 3) no qualifying tested level, but a dominant relevant level exists → headline it
+ *    with its own "structural reference" copy (kind: 'dominant') — distinct from the
+ *    testing copy since price isn't literally touching it right now;
  * 4) fallback — nearest valid level anywhere (or nothing at all), flagged as
  *    "free space". */
 export function selectStory(
@@ -62,7 +68,7 @@ export function selectStory(
         secondaryLevel: testedLevel,
       };
     }
-    return { kind: 'testing', text: formatTestingLine(dominant), level: dominant };
+    return { kind: 'dominant', text: formatDominantLine(dominant, currentPrice), level: dominant };
   }
 
   if (allLevels.length === 0) {

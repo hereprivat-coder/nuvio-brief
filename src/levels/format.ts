@@ -11,6 +11,7 @@ export function pluralizeRu(n: number, forms: readonly [string, string, string])
 
 const DAY_FORMS = ['день', 'дня', 'дней'] as const;
 const TOUCH_FORMS = ['подход', 'подхода', 'подходов'] as const;
+const TOUCH_COUNT_FORMS = ['касание', 'касания', 'касаний'] as const;
 
 export function formatPrice(price: number): string {
   return Math.round(price)
@@ -61,6 +62,19 @@ export function formatTestingLine(level: Level): string {
 export function formatCombinedTestingLine(weak: Level, dominant: Level, currentPrice: number): string {
   const direction = dominant.price < currentPrice ? 'ниже' : 'выше';
   return `BTC сейчас у ${formatPrice(weak.price)}, крупный узел ${direction} — ${formatPrice(dominant.price)}.`;
+}
+
+/** For a dominant relevant level price isn't actually touching right now — "уперся
+ * в"/"тестирует" would overclaim live contact, so this is deliberately a different,
+ * calmer register: pointing at a structural reference, not a live standoff. */
+export function formatDominantLine(dominant: Level, currentPrice: number): string {
+  const roleWord = dominant.role === 'support' ? 'поддержка' : 'сопротивление';
+  const directionWord = dominant.role === 'support' ? 'снизу' : 'сверху';
+  const touchesWord = pluralizeRu(dominant.touches, TOUCH_COUNT_FORMS);
+  return (
+    `BTC торгуется у ${formatPrice(currentPrice)}. Главный узел — ${roleWord} ${formatPrice(dominant.price)}: ` +
+    `${dominant.touches} ${touchesWord} за ${formatDays(dominant.ageDays)}, ключевой ориентир ${directionWord}.`
+  );
 }
 
 export function formatBreakoutLine(breakout: BreakoutEvent): string {

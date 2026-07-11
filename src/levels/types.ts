@@ -18,6 +18,10 @@ export interface Level {
   price: number;
   touches: number;
   strong: boolean;
+  /** True only for a level that wouldn't clear minTouches on its own and was
+   * injected purely to guarantee an immediate bracket (nearest level above and
+   * below price) always exists. Render/report these visibly as weaker. */
+  tentative: boolean;
   firstTouchTs: number;
   lastTouchTs: number;
   /** now - firstTouchTs, in days. */
@@ -35,11 +39,14 @@ export interface Level {
 export interface BreakoutEvent {
   level: Level;
   direction: 'up' | 'down';
+  /** ts of the candle where price first closed beyond the level by breakMargin. */
   brokenAtTs: number;
   ageAtBreakDays: number;
+  /** Stable id for dedup/persistence: which specific break this is. */
+  key: string;
 }
 
-export type StoryKind = 'breakout' | 'testing' | 'combined' | 'fallback';
+export type StoryKind = 'breakout' | 'testing' | 'combined' | 'dominant' | 'fallback';
 
 export interface LevelStory {
   kind: StoryKind;

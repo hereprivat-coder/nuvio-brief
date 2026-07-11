@@ -12,7 +12,7 @@ const INST_ID = 'BTC-USDT';
 const SIM_OFFSETS_DAYS = [0, 1, 3, 7];
 
 function printLevelsTable(levels: Level[]): void {
-  const headers = ['Price', 'Touches', 'Age(d)', 'Recency(d)', 'Role', 'Strong', 'Score'];
+  const headers = ['Price', 'Touches', 'Age(d)', 'Recency(d)', 'Role', 'Strong', 'Tentative', 'Score'];
   const rows = levels.map((l) => [
     formatPrice(l.price),
     String(l.touches),
@@ -20,6 +20,7 @@ function printLevelsTable(levels: Level[]): void {
     l.recencyDays.toFixed(1),
     l.role,
     l.strong ? 'yes' : 'no',
+    l.tentative ? 'yes' : 'no',
     l.score.toFixed(1),
   ]);
   const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));

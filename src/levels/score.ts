@@ -17,6 +17,7 @@ export function buildLevel(
   nowTs: number,
   currentPrice: number,
   config: LevelsConfig,
+  tentative = false,
 ): Level {
   const touchTimestamps = cluster.touches.map((t) => t.ts);
   const firstTouchTs = Math.min(...touchTimestamps);
@@ -38,6 +39,7 @@ export function buildLevel(
     price: cluster.price,
     touches: cluster.touches.length,
     strong: cluster.touches.length >= 3,
+    tentative,
     firstTouchTs,
     lastTouchTs,
     ageDays,

@@ -42,11 +42,13 @@ export async function renderLevelsChart(
       const y = yAt(level.price).toFixed(1);
       const isHighlighted = highlightPrice !== undefined && Math.abs(level.price - highlightPrice) < 1e-9;
       const isSecondary = secondaryPrice !== undefined && Math.abs(level.price - secondaryPrice) < 1e-9;
-      const color = isHighlighted ? '#e6551d' : isSecondary ? '#c98a1f' : level.role === 'support' ? '#2e8b57' : '#a33';
+      const baseColor = level.role === 'support' ? '#2e8b57' : '#a33';
+      const color = isHighlighted ? '#e6551d' : isSecondary ? '#c98a1f' : level.tentative ? '#999' : baseColor;
       const strokeWidth = isHighlighted || isSecondary ? 2.5 : level.strong ? 1.6 : 1;
-      const dash = isHighlighted || isSecondary ? '' : 'stroke-dasharray="6,4"';
+      const dash = isHighlighted || isSecondary ? '' : level.tentative ? 'stroke-dasharray="2,3"' : 'stroke-dasharray="6,4"';
       const marker = isHighlighted ? ' ★' : isSecondary ? ' •' : '';
-      const label = `${Math.round(level.price)} (${level.touches}x)${marker}`;
+      const tentativeTag = level.tentative ? ' ~tentative' : '';
+      const label = `${Math.round(level.price)} (${level.touches}x)${tentativeTag}${marker}`;
       return (
         `<line x1="${MARGIN.left}" y1="${y}" x2="${MARGIN.left + plotW}" y2="${y}" stroke="${color}" stroke-width="${strokeWidth}" ${dash}/>` +
         `<text x="${MARGIN.left + plotW + 8}" y="${Number(y) + 4}" font-size="13" fill="${color}" font-family="monospace">${escapeXml(label)}</text>`
@@ -73,8 +75,8 @@ export async function renderLevelsChart(
   );
 
   const legend =
-    'green dashed = support, red dashed = resistance, thicker = strong (3+ touches), ' +
-    'orange solid + ★ = headline level, amber solid + • = weak level actually being touched (combined story)';
+    'green/red dashed = support/resistance, thicker = strong (3+ touches), grey fine-dashed = tentative ' +
+    '(bracket-only, <3 touches), orange solid + ★ = headline, amber solid + • = weak level being touched (combined)';
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">
   <rect width="${WIDTH}" height="${HEIGHT}" fill="white"/>
