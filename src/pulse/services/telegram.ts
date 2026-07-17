@@ -26,3 +26,29 @@ export async function sendPulseMessage(text: string): Promise<void> {
     throw new Error(`Telegram sendMessage failed: ${res.status} ${body}`);
   }
 }
+
+/** Sends a chart image as its own channel post, with an optional caption
+ * (Telegram's sendPhoto caption cap is 1024 chars — callers must keep within
+ * that themselves). Separate from sendPulseMessage() because Telegram's photo
+ * upload is multipart, not JSON. */
+export async function sendPulsePhoto(photo: Buffer, caption?: string): Promise<void> {
+  if (pulseEnv.dryRun) {
+    console.log(`--- DRY RUN: Pulse photo that would be sent (${photo.length} bytes) ---`);
+    if (caption) console.log(caption);
+    console.log('--- end of photo ---');
+    return;
+  }
+
+  const url = `https://api.telegram.org/bot${pulseEnv.telegramBotToken}/sendPhoto`;
+  const form = new FormData();
+  form.set('chat_id', pulseEnv.telegramChannelId);
+  if (caption) form.set('caption', caption);
+  form.set('photo', new Blob([Uint8Array.from(photo)], { type: 'image/png' }), 'level-of-day.png');
+
+  const res = await fetch(url, { method: 'POST', body: form });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Telegram sendPhoto failed: ${res.status} ${body}`);
+  }
+}
