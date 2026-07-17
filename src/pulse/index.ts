@@ -2,7 +2,7 @@ import { pulseEnv, validatePulseEnv } from './env.js';
 import { PULSE_CONFIG, WATCHLIST } from './config.js';
 import { getMoscowHumanDate, getMoscowIsoDate } from '../utils/date.js';
 import { fetchCoinSeries } from './services/coinData.js';
-import { sendPulseMessage } from './services/telegram.js';
+import { sendPulseMessage, sendPulsePhoto } from './services/telegram.js';
 import { hasSentToday, markSentToday } from './services/idempotency.js';
 import { buildSnapshotLines } from './blocks/snapshot.js';
 import { detectAnomaly } from './blocks/anomaly.js';
@@ -10,6 +10,10 @@ import { buildLevelOfDay, markLevelBreakoutAnnounced } from './blocks/levelOfDay
 import { buildDerivativesLine } from './blocks/derivatives.js';
 import { buildFocusLine } from './blocks/focus.js';
 import { getFooterText, shouldShowFooter } from './blocks/footer.js';
+import { renderLevelsChartBuffer } from '../levels/chart.js';
+
+/** Telegram's sendPhoto caption cap. */
+const PHOTO_CAPTION_LIMIT = 1024;
 
 async function main(): Promise<void> {
   validatePulseEnv();
@@ -30,7 +34,8 @@ async function main(): Promise<void> {
 
   const snapshotLines = buildSnapshotLines(seriesList, PULSE_CONFIG);
   const anomaly = detectAnomaly(seriesList, PULSE_CONFIG);
-  const levelResult = await buildLevelOfDay();
+  const levelData = await buildLevelOfDay();
+  const levelResult = levelData?.result ?? null;
   const derivativesLine = await buildDerivativesLine(WATCHLIST, seriesList, PULSE_CONFIG);
   const focusLine = buildFocusLine(levelResult);
   const showFooter = shouldShowFooter(isoDate, PULSE_CONFIG);
@@ -44,6 +49,17 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Chart is a nice-to-have on top of Block 3's text — any render failure
+  // just falls back to the plain text line, same as before this existed.
+  let levelChart: Buffer | null = null;
+  if (levelData) {
+    try {
+      levelChart = await renderLevelsChartBuffer(levelData.candles, levelData.result);
+    } catch (err) {
+      console.error('Level-of-day chart render failed, falling back to text-only:', err);
+    }
+  }
+
   const lines: string[] = [`📟 Nuvio Pulse — ${humanDate}, 09:00`, ''];
 
   if (snapshotLines.length > 0) {
@@ -54,7 +70,9 @@ async function main(): Promise<void> {
     lines.push(`⚡ Аномалия: ${anomaly.text}`, '');
   }
 
-  if (levelResult) {
+  // When the chart renders, it's posted separately as a photo (caption below)
+  // instead of duplicating the same line here.
+  if (levelResult && !levelChart) {
     lines.push(`📍 Уровень дня: ${levelResult.story.text}`, '');
   }
 
@@ -75,6 +93,10 @@ async function main(): Promise<void> {
 
   const message = lines.join('\n');
 
+  if (levelChart && levelResult) {
+    const caption = `📍 Уровень дня: ${levelResult.story.text}`.slice(0, PHOTO_CAPTION_LIMIT);
+    await sendPulsePhoto(levelChart, caption);
+  }
   await sendPulseMessage(message);
   if (!pulseEnv.dryRun) {
     markSentToday(isoDate);

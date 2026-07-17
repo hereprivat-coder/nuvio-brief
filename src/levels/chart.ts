@@ -9,14 +9,11 @@ function escapeXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Renders price + detected levels to a PNG for a human to eyeball. Highlights
- * the level driving the current story (if any) in a distinct color. Pure
- * rendering, no analysis — takes whatever detectLevels() already computed. */
-export async function renderLevelsChart(
-  candles: Candle[],
-  result: DetectionResult,
-  outPath: string,
-): Promise<void> {
+/** Renders price + detected levels to a PNG buffer for a human to eyeball.
+ * Highlights the level driving the current story (if any) in a distinct
+ * color. Pure rendering, no analysis — takes whatever detectLevels() already
+ * computed. */
+export async function renderLevelsChartBuffer(candles: Candle[], result: DetectionResult): Promise<Buffer> {
   const plotW = WIDTH - MARGIN.left - MARGIN.right;
   const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
 
@@ -88,5 +85,12 @@ export async function renderLevelsChart(
   <rect x="${MARGIN.left}" y="${MARGIN.top}" width="${plotW}" height="${plotH}" fill="none" stroke="#ccc"/>
 </svg>`;
 
-  await sharp(Buffer.from(svg)).png().toFile(outPath);
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+/** File-writing wrapper around renderLevelsChartBuffer(), used by the manual
+ * verification harness. */
+export async function renderLevelsChart(candles: Candle[], result: DetectionResult, outPath: string): Promise<void> {
+  const buffer = await renderLevelsChartBuffer(candles, result);
+  await sharp(buffer).toFile(outPath);
 }

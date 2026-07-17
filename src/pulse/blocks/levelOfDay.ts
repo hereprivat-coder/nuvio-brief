@@ -2,7 +2,7 @@ import { LEVELS_CONFIG } from '../../levels/config.js';
 import { detectLevels } from '../../levels/detect.js';
 import { fetchOkxCandles } from '../../levels/okxCandles.js';
 import { loadAnnouncedBreakouts, markBreakoutAnnounced } from '../../levels/breakoutState.js';
-import type { DetectionResult } from '../../levels/types.js';
+import type { Candle, DetectionResult } from '../../levels/types.js';
 
 /** Production dedup state for the levels breakout branch — distinct from the
  * harness's scratch out/ path. Must be committed back to the repo by CI
@@ -12,8 +12,10 @@ export const LEVEL_BREAKOUT_STATE_PATH = 'state/pulse_levels_announced_breakouts
 
 /** Step: Block 3 — reuses the sealed src/levels/ detector as-is, no logic
  * changes. BTC only, per spec §5. Null on any failure (short history, OKX
- * down) — caller drops the whole block, the rest of the post still goes out. */
-export async function buildLevelOfDay(): Promise<DetectionResult | null> {
+ * down) — caller drops the whole block, the rest of the post still goes out.
+ * Candles are returned alongside the result so the caller can render a chart
+ * (src/levels/chart.ts) without re-fetching. */
+export async function buildLevelOfDay(): Promise<{ result: DetectionResult; candles: Candle[] } | null> {
   try {
     const totalNeeded = LEVELS_CONFIG.lookbackDays * 24;
     const candles = await fetchOkxCandles('BTC-USDT', LEVELS_CONFIG.candleBar, totalNeeded);
@@ -25,7 +27,8 @@ export async function buildLevelOfDay(): Promise<DetectionResult | null> {
       LEVELS_CONFIG.breakoutAnnouncedRetentionDays,
     );
 
-    return detectLevels(candles, LEVELS_CONFIG, announced);
+    const result = detectLevels(candles, LEVELS_CONFIG, announced);
+    return { result, candles };
   } catch {
     return null;
   }
