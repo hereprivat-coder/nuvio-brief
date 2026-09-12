@@ -4,8 +4,12 @@
 
 - **Nuvio Brief** — для новичков, 10:00 MSK, `src/*` + `src/blocks/*`, оркестрация `src/index.ts`.
 - **Nuvio Pulse** — для трейдеров, 09:00 MSK, `src/pulse/*`, оркестрация `src/pulse/index.ts`.
+- **Nuvio News** — новостной бот, проверка раз в 3 часа, `src/news/*`, оркестрация `src/news/index.ts`.
+  Постит только когда есть реально важная новость (see below) — интервал это потолок частоты,
+  не гарантия поста. Свой бот-токен, но постит в тот же канал, что Pulse.
 
-Отдельные боты, отдельные каналы-секреты, отдельная идемпотентность, отдельные workflow.
+Отдельные боты, отдельные каналы-секреты (кроме News, который делит канал с Pulse),
+отдельная идемпотентность, отдельные workflow.
 `src/levels/` (детектор уровней поддержки/сопротивления) используется только Pulse'ом
 (Блок 3) и общий для обоих в том смысле, что не относится ни к одному — самостоятельный
 модуль.
@@ -17,6 +21,7 @@ npm install
 cp .env.example .env   # заполнить токены обоих ботов
 npm start               # Nuvio Brief — реальная отправка в Telegram
 npm run pulse:start     # Nuvio Pulse — реальная отправка в Telegram
+npm run news:start      # Nuvio News — реальная отправка в Telegram (если есть что постить)
 ```
 
 Проверка сборки сообщения без реальной отправки:
@@ -24,6 +29,7 @@ npm run pulse:start     # Nuvio Pulse — реальная отправка в T
 ```bash
 DRY_RUN=1 npm start
 DRY_RUN=1 npm run pulse:start
+DRY_RUN=1 npm run news:start
 ```
 
 ## Секреты
@@ -42,10 +48,17 @@ DRY_RUN=1 npm run pulse:start
 - `PULSE_TELEGRAM_CHANNEL_ID` — ID канала (сейчас — тот же канал, что у Brief; см. §11 ТЗ Pulse)
 - `PULSE_SWAP_LINK` — ссылка на LI.FI swap-виджет для футера (опционально, по умолчанию `[ссылка]`)
 
+**Nuvio News:**
+- `NEWS_TELEGRAM_BOT_TOKEN` — токен ТРЕТЬЕГО бота (не тот же, что у Brief/Pulse)
+- `NEWS_TELEGRAM_CHANNEL_ID` — ID канала (сейчас — тот же канал, что у Pulse)
+- `GROQ_API_KEY` — тот же ключ, что у Brief; для News обязателен (без него ранжирование
+  и перевод на русский невозможны, бот ничего не отправит)
+
 ## Расписание
 
 - `.github/workflows/daily-brief.yml` — cron `0 7 * * *` (= 10:00 MSK)
 - `.github/workflows/pulse-brief.yml` — cron `0 6 * * *` (= 09:00 MSK, на час раньше Brief)
+- `.github/workflows/news.yml` — cron `0 */3 * * *`, каждые 3 часа (потолок частоты, не гарантия поста)
 
 Оба — UTC+3 без перевода часов (Москва). Запуск вручную — "Run workflow" (workflow_dispatch).
 
@@ -58,6 +71,9 @@ DRY_RUN=1 npm run pulse:start
 - `state/pulse_last_sent_date.txt` — Nuvio Pulse
 - `state/pulse_levels_announced_breakouts.json` — дедуп уже анонсированных пробоев
   детектора уровней (см. ниже); появляется только после первого реального пробоя.
+- `state/news_seen_guids.json` — GUID уже показанных Groq'у новостей (последние ~500),
+  чтобы не предлагать одно и то же на каждой 3-часовой проверке
+- `state/news_daily_count.json` — счётчик постов News за текущий MSK-день (лимит — ниже)
 
 ## Банк советов (Блок 4 брифа новичков)
 
@@ -71,6 +87,20 @@ DRY_RUN=1 npm run pulse:start
 без ИИ. Используется Nuvio Pulse (Блок 3 «Уровень дня» и Блок 5 «Фокус дня»).
 Параметры — `src/levels/config.ts`. Проверочный харнесс: `npm run levels:harness`
 (отдельный workflow `.github/workflows/levels-harness.yml`, ручной запуск).
+
+## Новостной бот (`src/news/`)
+
+Каждые 3 часа (`.github/workflows/news.yml`) параллельно опрашивает RSS официальных
+источников (`src/news/config.ts` → `NEWS_SOURCES`): CoinDesk, Cointelegraph, Decrypt,
+The Block, ForkLog, блог Ethereum Foundation, а также два общих официальных фида
+(SEC, ЦБ РФ) — из них крипто-релевантное отсеивается ключевыми словами.
+
+Пайплайн: fetch фидов → грубый фильтр по ключевым словам (`filter.ts`) → отсев уже
+показанных по GUID (`state/news_seen_guids.json`) → fuzzy-дедуп повторов одной новости
+у разных изданий + финальный выбор важности и перевод на русский через Groq (`rank.ts`).
+Если ничего не прошло фильтр или Groq решил, что ничего действительно важного нет —
+воркфлоу молча завершается без поста. Жёсткий потолок — не больше
+`NEWS_CONFIG.maxPostsPerDay` (сейчас 6) постов в сутки, даже если триггеров было больше.
 
 ## Что не реализовано
 

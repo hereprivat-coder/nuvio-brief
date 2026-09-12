@@ -68,9 +68,15 @@ export async function callGroq(eventLine: string): Promise<string | null> {
         Authorization: `Bearer ${config.groqApiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        // llama-3.3-70b-versatile was retired from Groq's catalog (model_not_found) —
+        // this silently fell back to the neutral canned text for an unknown period,
+        // since callGroq swallows every failure below. gpt-oss-120b is a reasoning
+        // model: reasoning_effort must be capped or it burns the whole max_tokens
+        // budget on hidden reasoning and returns empty content.
+        model: 'openai/gpt-oss-120b',
+        reasoning_effort: 'low',
         temperature: 0.3,
-        max_tokens: 200,
+        max_tokens: 600,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...FEW_SHOT,

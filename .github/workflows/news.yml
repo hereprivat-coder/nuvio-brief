@@ -1,0 +1,51 @@
+name: News Brief
+
+on:
+  schedule:
+    # Every 3 hours. This is an upper bound on frequency, not a guarantee of a
+    # post — the job itself skips silently when nothing important cleared the
+    # keyword filter + Groq ranking, or when the daily cap is already hit.
+    - cron: '0 */3 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news-brief
+  cancel-in-progress: false
+
+jobs:
+  send-news:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run news:start
+        env:
+          NEWS_TELEGRAM_BOT_TOKEN: ${{ secrets.NEWS_TELEGRAM_BOT_TOKEN }}
+          NEWS_TELEGRAM_CHANNEL_ID: ${{ secrets.NEWS_TELEGRAM_CHANNEL_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+      - name: Persist idempotency + daily-count state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          CHANGED=0
+          for f in state/news_seen_guids.json state/news_daily_count.json; do
+            if [ -f "$f" ] && [ -n "$(git status --porcelain "$f")" ]; then
+              git add "$f"
+              CHANGED=1
+            fi
+          done
+          if [ "$CHANGED" = "1" ]; then
+            git commit -m "chore: news state update $(date -u +%Y-%m-%d)"
+            git push
+          fi

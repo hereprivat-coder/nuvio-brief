@@ -7,6 +7,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "pulse:start": "tsx src/pulse/index.ts",
+    "news:start": "tsx src/news/index.ts",
     "typecheck": "tsc --noEmit",
     "levels:harness": "tsx scripts/levels-harness.ts"
   },
@@ -15,5 +16,8 @@
     "sharp": "^0.35.3",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.11.1"
   }
 }
